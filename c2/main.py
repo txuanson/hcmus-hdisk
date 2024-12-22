@@ -4,26 +4,23 @@ import platform
 from hashlib import md5
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
-from Crypto.Util.Padding import pad
+from Crypto.Util.Padding import pad, unpad
 
 PASSWORD_PADDING = b'\x00' * 16
 
 def encrypt(data, password):
-  key = SHA256.new(password).digest()
-  encryptor = AES.new(key, AES.MODE_CBC)
-  iv = encryptor.iv
+  key = SHA256.new(md5(password).digest()).digest()
+  encryptor = AES.new(key, AES.MODE_ECB)
   padded_data = pad(data, AES.block_size)
   ciphertext = encryptor.encrypt(padded_data)
 
-  return iv + ciphertext
+  return ciphertext
 
 def decrypt(data, password):
-  print(data)
-  key = SHA256.new(password).digest()
-  iv = data[:AES.block_size]
-  decryptor = AES.new(key, AES.MODE_CBC, iv)
-  extracted_data = decryptor.decrypt(data[AES.block_size:])
-  return unpad(extracted_data, AES.block_size)
+  key = SHA256.new(md5(password).digest()).digest()
+  decryptor = AES.new(key, AES.MODE_ECB)
+  padded_data = decryptor.decrypt(data)
+  return unpad(padded_data, AES.block_size)
 
 def set_bit(value, bit):
   return value | (1<<bit)
@@ -185,8 +182,11 @@ class Entry:
   def _remove(self):
     self.status = set_bit(self.status, 0)
 
+  def _recover(self):
+    self.status = clear_bit(self.status, 0)
+
   def _save_to_dat(self):
-    if self.data is None:
+    if not hasattr(self, 'data'):
       return
     with open(self.dat_dest, "wb") as f:
       f.seek(self.offset)
@@ -290,6 +290,15 @@ def select_entry():
 
   menu.open()
 
+def recover_file():
+  entry_name = input("Enter Entry Name: ")
+  entry = VOLUME.entry_table._find_by_name(entry_name)
+  if entry is None:
+    print("Entry not found!")
+    return
+  entry._recover()
+  VOLUME._save_to_disk()
+
 def select_volume():
   volume_dest = input("Enter Volume Destination: ")
   while True:
@@ -322,6 +331,7 @@ def select_volume():
   menu.add_option("Import File", lambda: import_file(), {})
   menu.add_option("Select Entry", lambda: select_entry(), {})
   menu.add_option("Delete File", lambda: delete_file(), {})
+  menu.add_option("Recover File", lambda: recover_file(), {})
   
   menu.add_option("Exit", lambda: exit(0), {})
   menu.open()
