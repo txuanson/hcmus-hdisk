@@ -1,6 +1,7 @@
 import os
+import argparse
 
-def recover_images(disk_image_file):
+def recover_images(disk_image_file, output_dir='.'):
     jpg_signature = b'\xff\xd8\xff'
     png_signature = b'\x89PNG\r\n\x1a\n'
     jpg_extension = '.jpg'
@@ -18,7 +19,7 @@ def recover_images(disk_image_file):
             if end == -1:
                 end = len(data)
             jpg_file = data[index:end]
-            filename = f'recovered_{index}{jpg_extension}'
+            filename = os.path.join(output_dir, f'recovered_{index}{jpg_extension}')
             with open(filename, 'wb') as f:
                 f.write(jpg_file)
             recovered_files.append(filename)
@@ -28,7 +29,7 @@ def recover_images(disk_image_file):
             if end == -1:
                 end = len(data)
             png_file = data[index:end]
-            filename = f'recovered_{index}{png_extension}'
+            filename = os.path.join(output_dir, f'recovered_{index}{png_extension}')
             with open(filename, 'wb') as f:
                 f.write(png_file)
             recovered_files.append(filename)
@@ -38,8 +39,26 @@ def recover_images(disk_image_file):
 
     return recovered_files
 
-# Example usage
-disk_image_file = './b1/image00.vol'
-recovered_files = recover_images(disk_image_file)
-print(f'Recovered files: {recovered_files}')
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input_file', help='Path to the disk image file')
+    parser.add_argument('-o', '--output_dir', help='Path to the output directory', default='.')
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = parse_args()
+
+    if args.input_file is None:
+        print('Please provide the path to the disk image file')
+        exit(1)
+
+    # Ensure the output directory exists
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+
+    recovered_files = recover_images(args.input_file, args.output_dir)
+    for file in recovered_files:
+        print(f'Recovered file: {file}')
 
